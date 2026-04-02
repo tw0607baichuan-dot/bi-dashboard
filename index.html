@@ -3,9 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>客服指揮中心 — BI Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/otpauth@9.3.6/dist/otpauth.umd.min.js"></script>
 <style>
 /* ══════════════════════════════════════
    Reset & Base
@@ -689,6 +693,72 @@ select.cyber-input {
 .access-lock .lock-sub {
   font-size:13px; color:var(--text-dim); opacity:0.5; text-align:center; line-height:1.6;
 }
+
+/* ══════════════════════════════════════
+   2FA — Binding & Verification
+   ══════════════════════════════════════ */
+.tfa-qr-wrap { text-align:center; padding:16px 0; }
+.tfa-qr-wrap canvas, .tfa-qr-wrap img { border:2px solid rgba(0,195,255,0.2); border-radius:4px; background:#fff; padding:8px; max-width:216px; }
+.tfa-secret-display {
+  font-family:var(--font-display); font-size:12px; letter-spacing:3px;
+  color:var(--accent-cyan); text-align:center; padding:8px;
+  background:rgba(0,20,60,0.5); border:1px solid rgba(0,195,255,0.15); border-radius:3px;
+  margin:8px 0 14px; word-break:break-all; user-select:all;
+}
+.tfa-code-input {
+  display:flex; justify-content:center; gap:6px; margin:12px 0;
+}
+.tfa-code-input input {
+  width:40px; height:48px; text-align:center; font-family:var(--font-display);
+  font-size:22px; font-weight:900; color:var(--accent-cyan);
+  background:rgba(0,20,60,0.5); border:1px solid rgba(0,195,255,0.2); border-radius:3px;
+  outline:none; transition:border-color 0.3s, box-shadow 0.3s;
+}
+.tfa-code-input input:focus {
+  border-color:var(--accent-cyan); box-shadow:0 0 8px rgba(0,240,255,0.15);
+}
+.tfa-hint { font-size:12px; color:var(--text-dim); text-align:center; margin-top:6px; line-height:1.5; }
+.tfa-status-badge {
+  display:inline-block; font-family:var(--font-display); font-size:9px; font-weight:700;
+  letter-spacing:1.5px; padding:2px 6px; border-radius:2px;
+}
+.tfa-status-badge.bound { color:var(--accent-green); border:1px solid rgba(0,255,136,0.25); background:rgba(0,255,136,0.06); }
+.tfa-status-badge.unbound { color:var(--accent-red); border:1px solid rgba(255,68,102,0.25); background:rgba(255,68,102,0.06); }
+.admin-panel .reset-2fa-btn {
+  background:rgba(255,128,64,0.08); border:1px solid rgba(255,128,64,0.2);
+  color:var(--accent-orange); font-size:10px; padding:2px 6px; border-radius:2px;
+  cursor:pointer; font-weight:600; transition:all 0.3s;
+}
+.admin-panel .reset-2fa-btn:hover { background:rgba(255,128,64,0.2); border-color:var(--accent-orange); }
+.admin-panel .reset-pw-btn {
+  background:rgba(0,195,255,0.08); border:1px solid rgba(0,195,255,0.2);
+  color:var(--accent-cyan); font-size:10px; padding:2px 6px; border-radius:2px;
+  cursor:pointer; font-weight:600; transition:all 0.3s;
+}
+.admin-panel .reset-pw-btn:hover { background:rgba(0,195,255,0.2); border-color:var(--accent-cyan); }
+.admin-panel .screenshot-btn {
+  background:rgba(148,102,255,0.08); border:1px solid rgba(148,102,255,0.2);
+  color:var(--accent-purple); font-size:10px; padding:2px 6px; border-radius:2px;
+  cursor:pointer; font-weight:600; transition:all 0.3s;
+}
+.admin-panel .screenshot-btn:hover { background:rgba(148,102,255,0.2); border-color:var(--accent-purple); }
+.pw-strength { font-size:11px; margin-top:-6px; margin-bottom:8px; font-weight:600; }
+.pw-strength.weak { color:var(--accent-red); }
+.pw-strength.ok { color:var(--accent-green); }
+.verification-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; font-size:11px; margin-top:4px; }
+.verification-grid .v-item { display:flex; align-items:center; gap:4px; color:var(--text-dim); }
+.verification-grid .v-item.done { color:var(--accent-green); }
+.verification-grid .v-item.pending { color:var(--accent-red); }
+
+/* Screenshot notification */
+.screenshot-notice {
+  text-align:center; padding:20px 24px; line-height:1.8;
+}
+.screenshot-notice .sn-icon { font-size:36px; margin-bottom:8px; }
+.screenshot-notice .sn-title { font-size:16px; font-weight:700; color:var(--accent-green); margin-bottom:10px; }
+.screenshot-notice .sn-body { font-size:14px; color:var(--text-secondary); margin-bottom:16px; }
+.screenshot-notice .sn-steps { text-align:left; font-size:13px; color:var(--text-dim); padding:12px 16px; background:rgba(0,20,60,0.3); border:1px solid rgba(0,195,255,0.1); border-radius:3px; margin-bottom:16px; }
+.screenshot-notice .sn-steps li { margin-bottom:4px; list-style:decimal; margin-left:16px; }
 </style>
 </head>
 <body>
@@ -819,16 +889,37 @@ select.cyber-input {
     <div class="modal-header"><h2>後台管理</h2><span class="modal-sub">CONTROL PANEL</span></div>
     <div class="admin-section"><div class="admin-section-title">系統狀態 <span>SYSTEM STATUS</span></div><div class="admin-status-row"><span class="se-dot online"></span> 系統運行中　·　版本 v1.0　·　<span id="admin-user-count">0</span> 位使用者</div></div>
     <div class="admin-section"><div class="admin-section-title">當前登錄 <span>CURRENT USER</span></div><div id="admin-current-info" class="admin-status-row"></div></div>
+    <div class="admin-toolbar" style="margin-bottom:12px">
+      <button class="toolbar-btn" id="tab-users" onclick="switchAdminTab('users')" style="opacity:1">用戶管理</button>
+      <button class="toolbar-btn" id="tab-login-logs" onclick="switchAdminTab('login-logs')" style="opacity:0.5">登入日誌</button>
+      <button class="toolbar-btn" id="tab-action-logs" onclick="switchAdminTab('action-logs')" style="opacity:0.5">操作日誌</button>
+    </div>
     <div class="admin-section"><div class="admin-section-title">用戶列表 <span>USER LIST</span></div>
       <div class="admin-toolbar">
         <input type="text" id="admin-search" placeholder="搜尋用戶..." oninput="renderAdminUserList()">
         <select id="admin-filter-role" onchange="renderAdminUserList()"><option value="">全部角色</option><option value="超級管理員">超級管理員</option><option value="主管">主管</option><option value="組長">組長</option><option value="組員">組員</option></select>
-        <select id="admin-filter-status" onchange="renderAdminUserList()"><option value="">全部狀態</option><option value="active">啟用</option><option value="disabled">停用</option></select>
+        <select id="admin-filter-status" onchange="renderAdminUserList()"><option value="">全部狀態</option><option value="active">啟用</option><option value="disabled">停用</option><option value="tfa_done">2FA已綁</option><option value="tfa_pending">2FA未綁</option></select>
         <button class="toolbar-btn" onclick="showModal('create-user-modal')">＋ 新增用戶</button>
       </div>
       <div id="admin-user-list"></div>
     </div>
-    <div class="admin-section"><div class="admin-section-title">權限說明 <span>ACCESS RULES</span></div><div class="admin-status-row" style="opacity:0.6">超級管理員：全部權限 / 角色管理　·　主管：管理權限 / 可管組員組長　·　組長：小組權限 / 唯讀後台　·　組員：基礎權限</div></div>
+    <div class="admin-section"><div class="admin-section-title">驗收狀態 <span>VERIFICATION</span></div><div id="admin-verification" class="admin-status-row"></div></div>
+    <div class="admin-section"><div class="admin-section-title">權限說明 <span>ACCESS RULES</span></div><div class="admin-status-row" style="opacity:0.6">超級管理員：全部權限　·　主管：管理權限　·　組長：小組權限　·　組員：基礎權限　|　登入流程：密碼 → 修改預設密碼 → 2FA 綁定 → 動態碼驗證</div></div>
+    <div class="admin-section" id="admin-login-logs-section" style="display:none">
+      <div class="admin-section-title">登入日誌 <span>LOGIN LOGS</span></div>
+      <div class="admin-toolbar">
+        <input type="text" id="log-login-search" placeholder="搜尋帳號..." oninput="renderLoginLogs()">
+        <select id="log-login-result" onchange="renderLoginLogs()"><option value="">全部結果</option><option value="success">成功</option><option value="fail">失敗</option></select>
+      </div>
+      <div id="login-logs-list"></div>
+    </div>
+    <div class="admin-section" id="admin-action-logs-section" style="display:none">
+      <div class="admin-section-title">操作日誌 <span>ACTION LOGS</span></div>
+      <div class="admin-toolbar">
+        <input type="text" id="log-action-search" placeholder="搜尋操作人..." oninput="renderActionLogs()">
+      </div>
+      <div id="action-logs-list"></div>
+    </div>
     <div class="admin-section reserved"><div class="admin-section-title">數據源預留 <span>DATA SOURCE</span></div><div class="admin-status-row" style="opacity:0.35">Google Sheet 串聯 · 圖表數據更新 · 看板配置 — 待開發</div></div>
   </div>
 </div>
@@ -857,6 +948,102 @@ select.cyber-input {
   </div>
 </div>
 
+<!-- User Detail Modal -->
+<div class="modal-overlay" id="user-detail-modal">
+  <div class="cyber-modal">
+    <button class="modal-close" onclick="hideModal('user-detail-modal')">&times;</button>
+    <div class="modal-header"><h2>用戶詳情</h2><span class="modal-sub">USER DETAIL</span></div>
+    <div class="modal-body" id="user-detail-content"></div>
+  </div>
+</div>
+
+<!-- 2FA Binding Modal -->
+<div class="modal-overlay" id="tfa-bind-modal">
+  <div class="cyber-modal">
+    <div class="modal-header"><h2>綁定雙重驗證</h2><span class="modal-sub">2FA BINDING · GOOGLE AUTHENTICATOR</span></div>
+    <div class="modal-body">
+      <div class="tfa-hint">請使用 Google Authenticator 掃描以下 QR Code</div>
+      <div class="tfa-qr-wrap" id="tfa-qr-container"></div>
+      <div class="tfa-hint">或手動輸入密鑰：</div>
+      <div class="tfa-secret-display" id="tfa-secret-display"></div>
+      <div class="tfa-hint" style="margin-top:4px;font-size:10px;opacity:0.5">otpauth URI:</div>
+      <div class="tfa-secret-display" id="tfa-uri-debug" style="font-size:9px;letter-spacing:0;word-break:break-all;opacity:0.6"></div>
+      <div class="tfa-hint">掃碼後請輸入 App 中顯示的 6 位動態碼完成綁定</div>
+      <div class="tfa-code-input" id="tfa-bind-code">
+        <input type="text" maxlength="1" data-idx="0"><input type="text" maxlength="1" data-idx="1"><input type="text" maxlength="1" data-idx="2"><input type="text" maxlength="1" data-idx="3"><input type="text" maxlength="1" data-idx="4"><input type="text" maxlength="1" data-idx="5">
+      </div>
+      <button class="cyber-btn" onclick="handleTfaBind()">確認綁定</button>
+      <div class="form-msg" id="tfa-bind-msg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 2FA Verification Modal -->
+<div class="modal-overlay" id="tfa-verify-modal">
+  <div class="cyber-modal">
+    <div class="modal-header"><h2>雙重驗證</h2><span class="modal-sub">2FA VERIFICATION</span></div>
+    <div class="modal-body">
+      <div class="tfa-hint">請輸入 Google Authenticator 中的 6 位動態碼</div>
+      <div class="tfa-code-input" id="tfa-verify-code">
+        <input type="text" maxlength="1" data-idx="0"><input type="text" maxlength="1" data-idx="1"><input type="text" maxlength="1" data-idx="2"><input type="text" maxlength="1" data-idx="3"><input type="text" maxlength="1" data-idx="4"><input type="text" maxlength="1" data-idx="5">
+      </div>
+      <button class="cyber-btn" onclick="handleTfaVerify()">驗證登入</button>
+      <div class="form-msg" id="tfa-verify-msg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Screenshot Notice Modal -->
+<div class="modal-overlay" id="screenshot-notice-modal">
+  <div class="cyber-modal">
+    <div class="modal-header"><h2>驗收提醒</h2><span class="modal-sub">VERIFICATION NOTICE</span></div>
+    <div class="modal-body">
+      <div class="screenshot-notice">
+        <div class="sn-icon">✅</div>
+        <div class="sn-title">2FA 綁定成功，已進入系統</div>
+        <div class="sn-body">請完成以下驗收步驟以達成帳號完成度 3/3：</div>
+        <ol class="sn-steps">
+          <li>截取當前成功登入畫面（需可見左下角帳號與角色）</li>
+          <li>將截圖提交給組長或管理員</li>
+          <li>管理員在後台確認後，您的截圖狀態將更新為「已通過」</li>
+        </ol>
+        <button class="cyber-btn" onclick="hideModal('screenshot-notice-modal')">我知道了，進入系統</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Change Password Modal (forced on first login) -->
+<div class="modal-overlay" id="change-pw-modal">
+  <div class="cyber-modal">
+    <div class="modal-header"><h2>修改預設密碼</h2><span class="modal-sub">MANDATORY PASSWORD CHANGE</span></div>
+    <div class="modal-body">
+      <div class="tfa-hint" style="color:var(--accent-orange);margin-bottom:12px">首次登入必須修改預設密碼，禁止使用弱密碼</div>
+      <label class="cyber-input-label">新密碼（至少 6 位，不可使用弱密碼）</label>
+      <input class="cyber-input" type="password" id="cpw-new" placeholder="請輸入新密碼" oninput="checkPwStrength()">
+      <div class="pw-strength" id="cpw-strength"></div>
+      <label class="cyber-input-label">確認新密碼</label>
+      <input class="cyber-input" type="password" id="cpw-confirm" placeholder="再次輸入新密碼">
+      <button class="cyber-btn" onclick="handleChangePassword()">確認修改</button>
+      <div class="form-msg" id="cpw-msg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Admin: Temp Password Display Modal -->
+<div class="modal-overlay" id="temp-pw-modal">
+  <div class="cyber-modal">
+    <button class="modal-close" onclick="hideModal('temp-pw-modal')">&times;</button>
+    <div class="modal-header"><h2>密碼已重置</h2><span class="modal-sub">TEMP PASSWORD</span></div>
+    <div class="modal-body">
+      <div class="tfa-hint">以下為該用戶的臨時密碼，請通知該用戶：</div>
+      <div class="tfa-secret-display" id="temp-pw-display" style="font-size:18px;letter-spacing:4px"></div>
+      <div class="tfa-hint" style="color:var(--accent-orange)">用戶下次登入時將被強制修改密碼</div>
+      <button class="cyber-btn" onclick="hideModal('temp-pw-modal')">確認關閉</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ══════════════════════════════════════
 // Auth Module
@@ -867,18 +1054,29 @@ var AuthManager = (function(){
 
   // ※ 開發測試階段初始化管理員帳號，接正式後端時需改為安全機制
   // 固定角色枚舉：超級管理員 / 主管 / 組長 / 組員 / 訪客
+  // ── 用戶資料結構 v2 ──
+  // passwordHash: 本階段仍存明文（後端化後改 bcrypt）
+  // passwordStatus: 'temporary' | 'changed'
+  // tfaStatus: 'unbound' | 'pending' | 'enabled' | 'reset_required'
+  // screenshotStatus: 'missing' | 'submitted' | 'approved' | 'rejected'
   var ROOT_ADMIN = {
-    id:'root_admin_001', username:'admin01', password:'123456',
+    id:'root_admin_001', username:'admin01', passwordHash:'123456',
     name:'系統管理員', displayName:'系統管理員',
     role:'超級管理員', team:'客服中心-1組', shift:'系統層',
     isRoot:true, isActive:true, isOnline:false,
-    createdAt:'2025-01-01T00:00:00Z', updatedAt:'2025-01-01T00:00:00Z', lastLoginAt:''
+    mustChangePassword:true, passwordStatus:'temporary',
+    tfaSecret:'', tfaEnabled:false, tfaStatus:'unbound',
+    firstLoginAt:'', lastLoginAt:'',
+    screenshotStatus:'missing',
+    createdAt:'2025-01-01T00:00:00Z', updatedAt:'2025-01-01T00:00:00Z'
   };
+
+  var WEAK_PASSWORDS = ['123456','password','000000','111111','654321','qwerty','abc123','admin','test','123abc'];
 
   var defaultUsers = [
     Object.assign({}, ROOT_ADMIN),
-    { id:'u_leader01', username:'leader01', password:'123456', name:'組長測試', displayName:'組長測試', role:'組長', team:'客服中心-1組', shift:'中班', isRoot:false, isActive:true, isOnline:false, createdAt:'2025-01-01T00:00:00Z', updatedAt:'2025-01-01T00:00:00Z', lastLoginAt:'' },
-    { id:'u_staff01', username:'staff01', password:'123456', name:'組員測試', displayName:'組員測試', role:'組員', team:'客服中心-1組', shift:'晚班', isRoot:false, isActive:true, isOnline:false, createdAt:'2025-01-01T00:00:00Z', updatedAt:'2025-01-01T00:00:00Z', lastLoginAt:'' }
+    { id:'u_leader01', username:'leader01', passwordHash:'123456', name:'組長測試', displayName:'組長測試', role:'組長', team:'客服中心-1組', shift:'中班', isRoot:false, isActive:true, isOnline:false, mustChangePassword:true, passwordStatus:'temporary', tfaSecret:'', tfaEnabled:false, tfaStatus:'unbound', firstLoginAt:'', lastLoginAt:'', screenshotStatus:'missing', createdAt:'2025-01-01T00:00:00Z', updatedAt:'2025-01-01T00:00:00Z' },
+    { id:'u_staff01', username:'staff01', passwordHash:'123456', name:'組員測試', displayName:'組員測試', role:'組員', team:'客服中心-1組', shift:'晚班', isRoot:false, isActive:true, isOnline:false, mustChangePassword:true, passwordStatus:'temporary', tfaSecret:'', tfaEnabled:false, tfaStatus:'unbound', firstLoginAt:'', lastLoginAt:'', screenshotStatus:'missing', createdAt:'2025-01-01T00:00:00Z', updatedAt:'2025-01-01T00:00:00Z' }
   ];
 
   // 角色層級：超級管理員 > 主管 > 組長 > 組員 > 訪客
@@ -889,15 +1087,48 @@ var AuthManager = (function(){
       var data = localStorage.getItem(USERS_KEY);
       if(!data) { saveUsers(defaultUsers); return defaultUsers.map(function(u){return Object.assign({},u)}); }
       var users = JSON.parse(data);
-      // 遷移：舊 status 字段 → 新 isActive/isOnline 字段
+      // 遷移：舊字段 → v2 結構
+      var VALID_TFA = ['unbound','pending','enabled','reset_required'];
+      var VALID_PW = ['temporary','changed'];
+      var VALID_SS = ['missing','submitted','approved','rejected'];
       var needSave = false;
       users.forEach(function(u){
-        if(typeof u.isActive === 'undefined'){
-          u.isActive = u.status !== 'disabled';
-          u.isOnline = u.status === 'online';
-          u.lastLoginAt = u.lastLoginAt || '';
-          delete u.status; needSave = true;
+        // password → passwordHash
+        if(u.password && !u.passwordHash){ u.passwordHash=u.password; delete u.password; needSave=true; }
+        // 確保 passwordHash 存在
+        if(!u.passwordHash && u.password){ u.passwordHash=u.password; needSave=true; }
+        // mustChangePassword / passwordStatus
+        if(typeof u.mustChangePassword==='undefined'){
+          u.mustChangePassword = u.passwordChanged ? false : true;
+          u.passwordStatus = u.passwordChanged ? 'changed' : 'temporary';
+          delete u.passwordChanged; delete u.defaultPassword; needSave=true;
         }
+        if(VALID_PW.indexOf(u.passwordStatus)===-1){ u.passwordStatus='temporary'; u.mustChangePassword=true; needSave=true; }
+        // tfaStatus — 強制歸一化
+        if(!u.tfaStatus || VALID_TFA.indexOf(u.tfaStatus)===-1){
+          // 嘗試從中文遷移
+          var zhMap={'未綁定':'unbound','待驗證':'pending','已綁定':'enabled','已重置待重綁':'reset_required'};
+          if(u.tfaStatus && zhMap[u.tfaStatus]){ u.tfaStatus=zhMap[u.tfaStatus]; }
+          else { u.tfaStatus = u.tfaEnabled ? 'enabled' : 'unbound'; }
+          needSave=true;
+        }
+        // 確保 tfaEnabled 與 tfaStatus 一致
+        if(u.tfaStatus==='enabled' && !u.tfaEnabled){ u.tfaEnabled=true; needSave=true; }
+        if(u.tfaStatus!=='enabled' && u.tfaEnabled){ u.tfaEnabled=false; needSave=true; }
+        // screenshotStatus
+        if(!u.screenshotStatus || VALID_SS.indexOf(u.screenshotStatus)===-1){
+          u.screenshotStatus = u.screenshotSubmitted ? 'submitted' : 'missing';
+          delete u.screenshotSubmitted; needSave=true;
+        }
+        // old status field
+        if(typeof u.isActive==='undefined'){
+          u.isActive = u.status!=='disabled'; u.isOnline = u.status==='online';
+          delete u.status; needSave=true;
+        }
+        // 確保必要字段存在
+        if(typeof u.firstLoginAt==='undefined'){ u.firstLoginAt=''; needSave=true; }
+        if(typeof u.lastLoginAt==='undefined'){ u.lastLoginAt=''; needSave=true; }
+        if(typeof u.tfaSecret==='undefined'){ u.tfaSecret=''; needSave=true; }
       });
       // 確保至少存在一個超級管理員
       var hasAdmin = users.some(function(u){ return u.role==='超級管理員'; });
@@ -923,23 +1154,128 @@ var AuthManager = (function(){
     else localStorage.removeItem(CURRENT_KEY);
   }
 
-  function login(username, password){
+  // 第一階段：驗帳密，返回用戶但不完成登入（需 2FA）
+  function verifyCredentials(username, password){
     var users = getUsers();
     var found = null;
     for(var i=0;i<users.length;i++){
-      if(users[i].username === username && users[i].password === password){
+      if(users[i].username === username && users[i].passwordHash === password){
         found = users[i]; break;
       }
     }
     if(!found) return { ok:false, msg:'帳號或密碼錯誤' };
     if(found.isActive === false) return { ok:false, msg:'此帳號已被停用' };
+    return {
+      ok:true, user:found,
+      needPasswordChange: found.mustChangePassword,
+      needBind: found.tfaStatus==='unbound' || found.tfaStatus==='reset_required' || found.tfaStatus==='pending',
+      needVerify: found.tfaStatus==='enabled'
+    };
+  }
+
+  // 第二階段：2FA 驗證通過後完成登入
+  function completeLogin(username){
+    var users = getUsers();
+    var found = null;
+    for(var i=0;i<users.length;i++){
+      if(users[i].username === username){ found = users[i]; break; }
+    }
+    if(!found) return;
     found.isOnline = true;
     found.lastLoginAt = new Date().toISOString();
+    if(!found.firstLoginAt) found.firstLoginAt = found.lastLoginAt;
     saveUsers(users);
     setCurrentUser(found);
     updateSystemEntry();
     updateAccessControl();
-    return { ok:true, user:found };
+  }
+
+  // 生成標準 TOTP Secret（RFC 4648 Base32 編碼，20 字節 = 32 字符）
+  // 字符集嚴格為：ABCDEFGHIJKLMNOPQRSTUVWXYZ234567（無 0/1/8/9）
+  function bytesToBase32(bytes){
+    var alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    var bits = 0, value = 0, output = '';
+    for(var i = 0; i < bytes.length; i++){
+      value = (value << 8) | bytes[i];
+      bits += 8;
+      while(bits >= 5){
+        output += alphabet[(value >>> (bits - 5)) & 31];
+        bits -= 5;
+      }
+    }
+    if(bits > 0){
+      output += alphabet[(value << (5 - bits)) & 31];
+    }
+    return output;
+  }
+
+  function generateTfaSecret(username){
+    // 生成 20 字節隨機數 → Base32 編碼 → 32 字符標準密鑰
+    var raw = new Uint8Array(20);
+    if(window.crypto && window.crypto.getRandomValues){ window.crypto.getRandomValues(raw); }
+    else { for(var i=0;i<20;i++) raw[i]=Math.floor(Math.random()*256); }
+    var secret = bytesToBase32(raw);
+    console.log('[AUTH] generateTfaSecret:', secret.substring(0,8)+'...', 'len:', secret.length);
+    var users = getUsers();
+    for(var i=0;i<users.length;i++){
+      if(users[i].username === username){
+        users[i].tfaSecret = secret;
+        users[i].tfaStatus = 'pending';
+        users[i].updatedAt = new Date().toISOString();
+        saveUsers(users);
+        break;
+      }
+    }
+    console.log('[AUTH] generateTfaSecret OK:', username, 'secret:', secret.substring(0,6)+'...');
+    return secret;
+  }
+
+  // 驗證 TOTP 碼
+  function verifyTotpCode(username, code){
+    var users = getUsers();
+    var user = null;
+    for(var i=0;i<users.length;i++){
+      if(users[i].username === username){ user = users[i]; break; }
+    }
+    if(!user || !user.tfaSecret) return false;
+    var totp = new OTPAuth.TOTP({
+      issuer:'CS-CMD-BI', label:username,
+      algorithm:'SHA1', digits:6, period:30,
+      secret: OTPAuth.Secret.fromBase32(user.tfaSecret)
+    });
+    var delta = totp.validate({ token:code, window:1 });
+    return delta !== null;
+  }
+
+  function enableTfa(username){
+    var users = getUsers();
+    for(var i=0;i<users.length;i++){
+      if(users[i].username === username){
+        users[i].tfaEnabled = true;
+        users[i].tfaStatus = 'enabled';
+        users[i].updatedAt = new Date().toISOString();
+        saveUsers(users); break;
+      }
+    }
+  }
+
+  function resetTfa(username){
+    var users = getUsers();
+    for(var i=0;i<users.length;i++){
+      if(users[i].username === username){
+        users[i].tfaSecret = '';
+        users[i].tfaEnabled = false;
+        users[i].tfaStatus = 'reset_required';
+        users[i].updatedAt = new Date().toISOString();
+        saveUsers(users); break;
+      }
+    }
+  }
+
+  // 已廢棄：不允許繞過 2FA 直接登入
+  // 所有登入必須經過 handleLogin() → 改密 → 2FA 綁定/驗證 → completeLogin
+  function login(username, password){
+    return verifyCredentials(username, password);
   }
 
   function logout(){
@@ -967,13 +1303,33 @@ var AuthManager = (function(){
       if(users[i].username === username) return { ok:false, msg:'Username already exists' };
     }
     var now = new Date().toISOString();
-    var newUser = { id:'u_'+Date.now(), username:username, password:password, name:displayName, displayName:displayName, role:'組員', team:team, shift:'', isRoot:false, isActive:true, isOnline:false, createdAt:now, updatedAt:now, lastLoginAt:'' };
+    var newUser = { id:'u_'+Date.now(), username:username, passwordHash:password, name:displayName, displayName:displayName, role:'組員', team:team, shift:'', isRoot:false, isActive:true, isOnline:false, mustChangePassword:true, passwordStatus:'temporary', tfaSecret:'', tfaEnabled:false, tfaStatus:'unbound', firstLoginAt:'', lastLoginAt:'', screenshotStatus:'missing', createdAt:now, updatedAt:now };
     users.push(newUser);
     saveUsers(users);
     return { ok:true, user:newUser };
   }
 
   function init(){
+    // 驗證已登入用戶是否真正完成了安全流程
+    var cur = getCurrentUser();
+    if(cur){
+      // 重新從 users 列表讀取最新狀態
+      var users = getUsers();
+      var fresh = null;
+      for(var i=0;i<users.length;i++){
+        if(users[i].username === cur.username){ fresh = users[i]; break; }
+      }
+      if(!fresh || !fresh.isActive){
+        // 用戶不存在或已停用 → 清除登入態
+        setCurrentUser(null);
+      } else if(fresh.mustChangePassword || fresh.tfaStatus !== 'enabled'){
+        // 密碼未改或 2FA 未完成 → 不允許保持登入
+        console.log('[AUTH] init: 清除未完成安全流程的登入態:', fresh.username, 'pw:', fresh.passwordStatus, '2fa:', fresh.tfaStatus);
+        fresh.isOnline = false;
+        saveUsers(users);
+        setCurrentUser(null);
+      }
+    }
     updateSystemEntry();
     updateAccessControl();
   }
@@ -997,13 +1353,18 @@ var AuthManager = (function(){
   // 判斷 currentUser 是否可管理 targetUser
   function canManageUser(current, target){
     if(!current || !target) return false;
-    if(target.isRoot) return false; // ROOT 不可動
-    if(current.username === target.username) return false; // 不可改自己
+    if(target.isRoot) return false;
+    if(current.username === target.username) return false;
     var cLv = ROLE_HIERARCHY[current.role]||0;
     var tLv = ROLE_HIERARCHY[target.role]||0;
-    if(current.role === '超級管理員') return true; // 超管可管所有非ROOT
-    if(current.role === '主管') return tLv < 3; // 主管可管組長以下
-    return false;
+    if(cLv < 3) return false; // leader 以下不可管人
+    return cLv > tLv; // 只能管比自己低的
+  }
+
+  function isOnlySuperAdmin(username){
+    var users = getUsers();
+    var sas = users.filter(function(u){ return u.role==='超級管理員' && u.isActive!==false; });
+    return sas.length === 1 && sas[0].username === username;
   }
 
   // 判斷 currentUser 可創建哪些角色
@@ -1014,12 +1375,64 @@ var AuthManager = (function(){
     return [];
   }
 
+  function isWeakPassword(pw){
+    if(!pw || pw.length < 6) return true;
+    if(WEAK_PASSWORDS.indexOf(pw) !== -1) return true;
+    return false;
+  }
+
+  function changePassword(username, newPassword){
+    var users = getUsers();
+    for(var i=0;i<users.length;i++){
+      if(users[i].username === username){
+        users[i].passwordHash = newPassword;
+        users[i].mustChangePassword = false;
+        users[i].passwordStatus = 'changed';
+        users[i].updatedAt = new Date().toISOString();
+        saveUsers(users); return { ok:true };
+      }
+    }
+    return { ok:false };
+  }
+
+  function resetPassword(username){
+    var newPw = 'Tmp' + Math.random().toString(36).slice(2,8);
+    var users = getUsers();
+    for(var i=0;i<users.length;i++){
+      if(users[i].username === username){
+        users[i].passwordHash = newPw;
+        users[i].mustChangePassword = true;
+        users[i].passwordStatus = 'temporary';
+        users[i].updatedAt = new Date().toISOString();
+        saveUsers(users); return { ok:true, tempPassword:newPw };
+      }
+    }
+    return { ok:false };
+  }
+
+  // screenshotStatus: 'missing' | 'submitted' | 'approved' | 'rejected'
+  function setScreenshotStatus(username, newStatus){
+    var users = getUsers();
+    for(var i=0;i<users.length;i++){
+      if(users[i].username === username){
+        users[i].screenshotStatus = newStatus;
+        users[i].updatedAt = new Date().toISOString();
+        saveUsers(users); break;
+      }
+    }
+  }
+
   return {
     init:init, getUsers:getUsers, saveUsers:saveUsers,
     getCurrentUser:getCurrentUser, login:login, logout:logout,
     register:register, canAccess:canAccess, isAdminOrLeader:isAdminOrLeader,
-    isSuperAdmin:isSuperAdmin, canManageUser:canManageUser, creatableRoles:creatableRoles,
-    ROLE_HIERARCHY:ROLE_HIERARCHY
+    isSuperAdmin:isSuperAdmin, canManageUser:canManageUser, isOnlySuperAdmin:isOnlySuperAdmin, creatableRoles:creatableRoles,
+    verifyCredentials:verifyCredentials, completeLogin:completeLogin,
+    generateTfaSecret:generateTfaSecret, verifyTotpCode:verifyTotpCode,
+    enableTfa:enableTfa, resetTfa:resetTfa,
+    isWeakPassword:isWeakPassword, changePassword:changePassword,
+    resetPassword:resetPassword, setScreenshotStatus:setScreenshotStatus,
+    ROLE_HIERARCHY:ROLE_HIERARCHY, WEAK_PASSWORDS:WEAK_PASSWORDS
   };
 })();
 
@@ -1089,18 +1502,252 @@ function hideModal(id){
   }
 }
 
+// 暫存待 2FA 驗證的用戶名
+var _pendingTfaUser = null;
+
 function handleLogin(){
   var u = document.getElementById('login-username').value.trim();
   var p = document.getElementById('login-password').value;
   var msg = document.getElementById('login-msg');
   if(!u || !p){ msg.textContent='請填寫所有欄位'; msg.className='form-msg error'; return; }
-  var result = AuthManager.login(u, p);
-  if(result.ok){
-    msg.textContent='登入成功'; msg.className='form-msg success';
-    setTimeout(function(){ hideModal('login-modal'); }, 500);
+  var result = AuthManager.verifyCredentials(u, p);
+  if(!result.ok){ LogManager.addLoginLog({ username:u, result:'fail', reason:result.msg }); msg.textContent=result.msg||'帳號或密碼錯誤'; msg.className='form-msg error'; return; }
+
+  LogManager.addLoginLog({ username:u, result:'success', reason:'credentials OK' });
+  _pendingTfaUser = u;
+  msg.textContent='帳密驗證通過，請繼續...'; msg.className='form-msg';
+
+  if(result.needPasswordChange){
+    // 步驟1：強制修改預設密碼
+    setTimeout(function(){
+      hideModal('login-modal');
+      showModal('change-pw-modal');
+    }, 400);
+  } else if(result.needBind){
+    // 步驟2：需綁定 2FA（tfaStatus=unbound/reset_required）
+    var secret = AuthManager.generateTfaSecret(u);
+    setTimeout(function(){
+      hideModal('login-modal');
+      show2faBindModal(u, secret);
+    }, 400);
+  } else if(result.needVerify){
+    // 步驟3：已綁定，驗證動態碼（tfaStatus=enabled）
+    setTimeout(function(){
+      hideModal('login-modal');
+      showModal('tfa-verify-modal');
+      focusTfaInput('tfa-verify-code');
+    }, 400);
   } else {
-    msg.textContent=result.msg||'帳號或密碼錯誤'; msg.className='form-msg error';
+    // 安全兜底：若狀態不明確，視為需要綁定
+    var secret2 = AuthManager.generateTfaSecret(u);
+    setTimeout(function(){
+      hideModal('login-modal');
+      show2faBindModal(u, secret2);
+    }, 400);
   }
+}
+
+function show2faBindModal(username, secret){
+  var secretEl = document.getElementById('tfa-secret-display');
+  var container = document.getElementById('tfa-qr-container');
+  var modal = document.getElementById('tfa-bind-modal');
+
+
+  secretEl.textContent = secret || '密鑰生成失敗';
+  // 顯示完整 URI 供調試
+  var uriDebugEl = document.getElementById('tfa-uri-debug');
+  container.innerHTML = '';
+
+  if(secret){
+    var uri = 'otpauth://totp/CS-CMD-BI:'+encodeURIComponent(username)+'?secret='+secret+'&issuer=CS-CMD-BI&algorithm=SHA1&digits=6&period=30';
+    if(uriDebugEl) uriDebugEl.textContent = uri;
+    var img = document.createElement('img');
+    img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='+encodeURIComponent(uri);
+    img.width = 200; img.height = 200; img.alt = 'QR Code';
+    img.style.cssText = 'display:block;margin:0 auto;background:#fff;padding:8px;border:2px solid rgba(0,195,255,0.2);border-radius:4px';
+    container.appendChild(img);
+  } else {
+    container.innerHTML = '<div style="color:var(--accent-red);padding:20px;text-align:center">密鑰生成失敗</div>';
+  }
+
+  // 強制打開弹窗
+  if(modal){
+    modal.style.display = 'flex';
+    modal.classList.add('visible');
+    console.log('[AUTH] tfa-bind-modal opened');
+  }
+
+  focusTfaInput('tfa-bind-code');
+}
+
+function handleTfaBind(){
+  var code = collectTfaCode('tfa-bind-code');
+  var msg = document.getElementById('tfa-bind-msg');
+  if(code.length!==6){ msg.textContent='請輸入完整 6 位碼'; msg.className='form-msg error'; return; }
+  if(!_pendingTfaUser){ msg.textContent='驗證逾時，請重新登入'; msg.className='form-msg error'; return; }
+  if(!AuthManager.verifyTotpCode(_pendingTfaUser, code)){
+    msg.textContent='動態碼錯誤，請確認 App 中的碼'; msg.className='form-msg error'; return;
+  }
+
+  console.log('[BIND] verifyTotpCode passed');
+
+  var username = _pendingTfaUser;
+
+  AuthManager.enableTfa(username);
+  console.log('[BIND] enableTfa done');
+  AuthManager.completeLogin(username);
+  console.log('[BIND] completeLogin done');
+
+  msg.textContent='綁定成功，正在進入系統...'; msg.className='form-msg success';
+
+  setTimeout(function(){
+    var bindModal = document.getElementById('tfa-bind-modal');
+    if(bindModal){ bindModal.classList.remove('visible'); bindModal.style.display='none'; }
+    _pendingTfaUser = null;
+    updateSystemEntry();
+    updateAccessControl();
+    // 首次綁定成功 → 顯示截圖提醒
+    showModal('screenshot-notice-modal');
+  }, 800);
+}
+
+function handleTfaVerify(){
+  var code = collectTfaCode('tfa-verify-code');
+  var msg = document.getElementById('tfa-verify-msg');
+  if(code.length!==6){ msg.textContent='請輸入完整 6 位碼'; msg.className='form-msg error'; return; }
+  if(!_pendingTfaUser){ msg.textContent='驗證逾時，請重新登入'; msg.className='form-msg error'; return; }
+  if(!AuthManager.verifyTotpCode(_pendingTfaUser, code)){
+    msg.textContent='動態碼錯誤'; msg.className='form-msg error'; return;
+  }
+  // 動態碼驗證通過 → 完成登入
+  var username = _pendingTfaUser;
+  AuthManager.completeLogin(username);
+  // completeLogin 已寫入 currentUser + 更新 UI
+  msg.textContent='驗證成功，正在進入系統...'; msg.className='form-msg success';
+  setTimeout(function(){
+    var verifyModal = document.getElementById('tfa-verify-modal');
+    if(verifyModal) verifyModal.classList.remove('visible');
+    _pendingTfaUser = null;
+  }, 500);
+}
+
+// 收集 6 格 code
+function collectTfaCode(containerId){
+  var inputs = document.getElementById(containerId).querySelectorAll('input');
+  var code = '';
+  inputs.forEach(function(inp){ code += inp.value; });
+  return code;
+}
+
+// 自動聚焦 + 跳格邏輯
+function focusTfaInput(containerId){
+  var inputs = document.getElementById(containerId).querySelectorAll('input');
+  inputs.forEach(function(inp){ inp.value = ''; });
+  if(inputs[0]) inputs[0].focus();
+  inputs.forEach(function(inp, i){
+    inp.oninput = function(){
+      if(inp.value && i < 5) inputs[i+1].focus();
+    };
+    inp.onkeydown = function(e){
+      if(e.key==='Backspace' && !inp.value && i > 0) inputs[i-1].focus();
+    };
+  });
+}
+
+function checkPwStrength(){
+  var pw = document.getElementById('cpw-new').value;
+  var el = document.getElementById('cpw-strength');
+  if(!pw){ el.textContent=''; return; }
+  if(AuthManager.isWeakPassword(pw)){ el.textContent='⚠ 密碼過弱或在黑名單中'; el.className='pw-strength weak'; }
+  else { el.textContent='✓ 密碼強度可接受'; el.className='pw-strength ok'; }
+}
+
+function handleChangePassword(){
+  var pw = document.getElementById('cpw-new').value;
+  var pw2 = document.getElementById('cpw-confirm').value;
+  var msg = document.getElementById('cpw-msg');
+  if(!pw||!pw2){ msg.textContent='請填寫所有欄位'; msg.className='form-msg error'; return; }
+  if(AuthManager.isWeakPassword(pw)){ msg.textContent='此密碼不符合安全要求'; msg.className='form-msg error'; return; }
+  if(pw!==pw2){ msg.textContent='兩次密碼不一致'; msg.className='form-msg error'; return; }
+  if(!_pendingTfaUser){ msg.textContent='逾時，請重新登入'; msg.className='form-msg error'; return; }
+
+  var username = _pendingTfaUser;
+  console.log('[AUTH-PW] STEP 1: _pendingTfaUser =', _pendingTfaUser);
+
+  var r = AuthManager.changePassword(username, pw);
+  console.log('[AUTH-PW] STEP 2: changePassword result =', JSON.stringify(r));
+  if(!r.ok){ msg.textContent='修改失敗'; msg.className='form-msg error'; return; }
+
+  // 驗證密碼確實已更新
+  var checkUsers = AuthManager.getUsers();
+  var checkUser = null;
+  for(var i=0;i<checkUsers.length;i++){ if(checkUsers[i].username===username){ checkUser=checkUsers[i]; break; } }
+  console.log('[AUTH-PW] STEP 3: after changePassword →', JSON.stringify({
+    username: checkUser ? checkUser.username : 'NOT FOUND',
+    mustChangePassword: checkUser ? checkUser.mustChangePassword : '?',
+    passwordStatus: checkUser ? checkUser.passwordStatus : '?',
+    tfaStatus: checkUser ? checkUser.tfaStatus : '?',
+    tfaEnabled: checkUser ? checkUser.tfaEnabled : '?',
+    tfaSecret: checkUser ? (checkUser.tfaSecret ? 'HAS_SECRET' : 'EMPTY') : '?'
+  }));
+
+  msg.textContent='密碼修改成功，繼續設定 2FA...'; msg.className='form-msg success';
+
+  console.log('[AUTH-PW] STEP 4: scheduling continueAfterPasswordChange in 600ms');
+  setTimeout(function(){
+    console.log('[AUTH-PW] STEP 5: setTimeout fired, calling continueAfterPasswordChange');
+    continueAfterPasswordChange(username);
+  }, 600);
+}
+
+function continueAfterPasswordChange(username){
+  var cpwModal = document.getElementById('change-pw-modal');
+  if(cpwModal) cpwModal.classList.remove('visible');
+  if(!username){ console.error('[AUTH] no username'); return; }
+
+  var users = AuthManager.getUsers();
+  var user = null;
+  for(var i=0;i<users.length;i++){
+    if(users[i].username === username){ user = users[i]; break; }
+  }
+  if(!user){ console.error('[AUTH] user not found:', username); return; }
+
+  console.log('[AUTH] continueAfterPW:', username, 'tfaStatus=', user.tfaStatus);
+
+  // 判斷 2FA 狀態
+  if(user.tfaStatus==='enabled'){
+    showModal('tfa-verify-modal');
+    focusTfaInput('tfa-verify-code');
+  } else {
+    // unbound / reset_required / pending / 其他 → 全部進入綁定
+    var secret = AuthManager.generateTfaSecret(username);
+    show2faBindModal(username, secret);
+  }
+}
+
+function adminResetPassword(idx){
+  var cur = AuthManager.getCurrentUser();
+  var users = AuthManager.getUsers();
+  if(!users[idx] || !AuthManager.canManageUser(cur, users[idx])) return;
+  var r = AuthManager.resetPassword(users[idx].username);
+  if(r.ok){
+    LogManager.addActionLog({operator:cur.username, operatorRole:cur.role, action:'重置密碼', target:users[idx].username, detail:'密碼已重置', result:'success'});
+    document.getElementById('temp-pw-display').textContent = r.tempPassword;
+    showModal('temp-pw-modal');
+    renderAdminUserList();
+  }
+}
+
+function adminSetScreenshot(idx, newStatus){
+  var cur = AuthManager.getCurrentUser();
+  var users = AuthManager.getUsers();
+  if(!users[idx] || !AuthManager.canManageUser(cur, users[idx])) return;
+  AuthManager.setScreenshotStatus(users[idx].username, newStatus);
+  LogManager.addActionLog({operator:cur.username, operatorRole:cur.role, action:'截圖狀態變更', target:users[idx].username, detail:'screenshot:→'+newStatus, result:'success'});
+  // 重新讀取更新後的用戶推送
+  var updated = AuthManager.getUsers();
+  if(updated[idx] && typeof SheetSync!=='undefined') try{ SheetSync.pushUser(updated[idx]); }catch(e){}
+  renderAdminUserList();
 }
 
 function handleRegister(){
@@ -1137,6 +1784,10 @@ function showAdminPanel(){
   }
   renderAdminUserList();
   document.getElementById('admin-panel').classList.add('visible');
+  // 異步拉取最新 Sheet 數據
+  if(typeof SheetSync!=='undefined' && SheetSync.isEnabled()){
+    SheetSync.pullUsers(function(){ renderAdminUserList(); });
+  }
 }
 function hideAdminPanel(){
   document.getElementById('admin-panel').classList.remove('visible');
@@ -1153,16 +1804,28 @@ function renderAdminUserList(){
   var fRole = document.getElementById('admin-filter-role').value;
   var fStatus = document.getElementById('admin-filter-status').value;
   var filtered = users.filter(function(u){
+    if(u.isDeleted) return false; // 排除軟刪除用戶
     if(search && u.username.toLowerCase().indexOf(search)===-1 && (u.displayName||u.name||'').toLowerCase().indexOf(search)===-1) return false;
     if(fRole && u.role!==fRole) return false;
-    if(fStatus==='active' && u.isActive!==true) return false;
-    if(fStatus==='disabled' && u.isActive!==false) return false;
+    if(fStatus==='active' && !u.isActive) return false;
+    if(fStatus==='disabled' && u.isActive) return false;
+    if(fStatus==='tfa_done' && u.tfaStatus!=='enabled') return false;
+    if(fStatus==='tfa_pending' && u.tfaStatus==='enabled') return false;
     return true;
   });
 
   var RC = {'超級管理員':'var(--accent-orange)','主管':'var(--accent-cyan)','組長':'var(--accent-purple)','組員':'var(--text-secondary)'};
-  var html = '<table><thead><tr><th>帳號</th><th>名稱</th><th>角色</th><th>班別</th><th>帳號狀態</th><th>在線</th><th>操作</th></tr></thead><tbody>';
-  filtered.forEach(function(u){
+  var html = '<table><thead><tr><th>帳號</th><th>名稱</th><th>角色</th><th>密碼</th><th>2FA</th><th>截圖</th><th>首次登入</th><th>最後登入</th><th>完成度</th><th>操作</th></tr></thead><tbody>';
+  // 分頁
+  var PAGE_SIZE = 10;
+  var pageEl = document.getElementById('admin-page-num');
+  var currentPage = pageEl ? parseInt(pageEl.value||'1') : 1;
+  var totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  if(currentPage > totalPages) currentPage = totalPages;
+  var pageStart = (currentPage-1) * PAGE_SIZE;
+  var pageEnd = pageStart + PAGE_SIZE;
+  var paged = filtered.slice(pageStart, pageEnd);
+  paged.forEach(function(u){
     var idx = users.indexOf(u);
     var canEdit = AuthManager.canManageUser(cur, u);
     var acColor = u.isActive!==false ? 'var(--accent-green)' : 'var(--accent-red)';
@@ -1170,26 +1833,74 @@ function renderAdminUserList(){
     var onColor = u.isOnline ? 'var(--accent-green)' : 'var(--text-dim)';
     var onText = u.isOnline ? '在線' : '離線';
 
+    // 密碼狀態
+    var pwMap = {changed:{t:'已修改',c:'var(--accent-green)'},temporary:{t:'預設',c:'var(--accent-orange)'}};
+    var pw = pwMap[u.passwordStatus] || pwMap.temporary;
+    // 2FA 狀態
+    var tfaMap = {enabled:{t:'已綁定',c:'var(--accent-green)'},pending:{t:'待驗證',c:'var(--accent-orange)'},unbound:{t:'未綁定',c:'var(--accent-red)'},reset_required:{t:'待重綁',c:'var(--accent-red)'}};
+    var tfa = tfaMap[u.tfaStatus] || tfaMap.unbound;
+    // 截圖狀態
+    var ssMap = {approved:{t:'已通過',c:'var(--accent-green)'},submitted:{t:'待審',c:'var(--accent-cyan)'},rejected:{t:'已退回',c:'var(--accent-orange)'},missing:{t:'未提交',c:'var(--text-dim)'}};
+    var ss = ssMap[u.screenshotStatus] || ssMap.missing;
+    // 時間
+    var firstLogin = u.firstLoginAt ? u.firstLoginAt.slice(5,10)+' '+u.firstLoginAt.slice(11,16) : '--';
+    var lastLogin = u.lastLoginAt ? u.lastLoginAt.slice(5,10)+' '+u.lastLoginAt.slice(11,16) : '--';
+    // 完成度 X/3
+    var done = (u.passwordStatus==='changed'?1:0) + (u.tfaStatus==='enabled'?1:0) + (u.screenshotStatus==='approved'?1:0);
+    var doneColor = done===3 ? 'var(--accent-green)' : done>=2 ? 'var(--accent-orange)' : 'var(--accent-red)';
+
     html += '<tr>';
     html += '<td>'+u.username+'</td>';
     html += '<td>'+(u.displayName||u.name)+(u.isRoot?' <span class="root-lock">ROOT</span>':'')+'</td>';
     html += '<td style="color:'+(RC[u.role]||'var(--text-dim)')+'">'+u.role+'</td>';
-    html += '<td>'+(u.team||'')+(u.shift?' · '+u.shift:'')+'</td>';
-    html += '<td style="color:'+acColor+'">'+acText+'</td>';
-    html += '<td style="color:'+onColor+'">'+onText+'</td>';
+    html += '<td style="color:'+pw.c+'">'+pw.t+'</td>';
+    html += '<td style="color:'+tfa.c+'">'+tfa.t+'</td>';
+    html += '<td style="color:'+ss.c+'">'+ss.t+'</td>';
+    html += '<td style="font-size:10px;color:var(--text-dim)">'+firstLogin+'</td>';
+    html += '<td style="font-size:10px;color:var(--text-dim)">'+lastLogin+'</td>';
+    html += '<td style="color:'+doneColor+';font-weight:700;font-family:var(--font-display);font-size:12px">'+done+'/3</td>';
     if(u.isRoot){
-      html += '<td><span class="root-lock">SYSTEM ROOT · LOCKED</span></td>';
+      html += '<td><span class="root-lock">LOCKED</span></td>';
     } else if(canEdit){
       var opts=''; AuthManager.creatableRoles(cur).forEach(function(r){ opts+='<option value="'+r+'"'+(u.role===r?' selected':'')+'>'+r+'</option>'; });
-      html += '<td><select class="role-select" onchange="changeUserRole('+idx+',this.value)">'+opts+'</select> ';
-      html += '<button class="'+(u.isActive!==false?'del-btn':'enable-btn')+'" onclick="toggleUserStatus('+idx+')">'+(u.isActive!==false?'停用':'啟用')+'</button></td>';
+      html += '<td style="white-space:nowrap">';
+      html += '<button class="toolbar-btn" style="font-size:9px;padding:2px 5px;margin-right:3px" onclick="showUserDetail('+idx+')">詳情</button>';
+      html += '<select class="role-select" onchange="changeUserRole('+idx+',this.value)">'+opts+'</select> ';
+      html += '<button class="'+(u.isActive!==false?'del-btn':'enable-btn')+'" onclick="toggleUserStatus('+idx+')">'+(u.isActive!==false?'停':'啟')+'</button> ';
+      html += '<button class="reset-pw-btn" onclick="adminResetPassword('+idx+')">重置密碼</button> ';
+      if(u.tfaEnabled) html += '<button class="reset-2fa-btn" onclick="resetUser2fa('+idx+')">重置2FA</button> ';
+      if(u.screenshotStatus==='missing'||u.screenshotStatus==='rejected') html += '<button class="screenshot-btn" onclick="adminSetScreenshot('+idx+',\'submitted\')">確認提交</button>';
+      if(u.screenshotStatus==='submitted') html += '<button class="enable-btn" onclick="adminSetScreenshot('+idx+',\'approved\')">通過</button> <button class="del-btn" onclick="adminSetScreenshot('+idx+',\'rejected\')">退回</button>';
+      if(u.screenshotStatus==='approved') html += '<button class="del-btn" onclick="adminSetScreenshot('+idx+',\'missing\')">撤銷</button>';
+      html += '</td>';
     } else {
-      html += '<td style="color:var(--text-dim)">--</td>';
+      html += '<td><button class="toolbar-btn" style="font-size:9px;padding:2px 5px" onclick="showUserDetail('+idx+')">詳情</button></td>';
     }
     html += '</tr>';
   });
-  if(!filtered.length) html += '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:16px">無符合條件的用戶</td></tr>';
+  // 驗收統計（完成度 3 項）
+  var total=users.length, pwDone=0, tfaDone=0, ssDone=0, allDone=0;
+  users.forEach(function(u){
+    if(u.passwordStatus==='changed') pwDone++;
+    if(u.tfaStatus==='enabled') tfaDone++;
+    if(u.screenshotStatus==='approved') ssDone++;
+    var d = (u.passwordStatus==='changed'?1:0)+(u.tfaStatus==='enabled'?1:0)+(u.screenshotStatus==='approved'?1:0);
+    if(d===3) allDone++;
+  });
+  var vEl = document.getElementById('admin-verification');
+  if(vEl) vEl.innerHTML = '<div class="verification-grid">'
+    +'<div class="v-item '+(pwDone===total?'done':'pending')+'">密碼修改：'+pwDone+'/'+total+'</div>'
+    +'<div class="v-item '+(tfaDone===total?'done':'pending')+'">2FA綁定：'+tfaDone+'/'+total+'</div>'
+    +'<div class="v-item '+(ssDone===total?'done':'pending')+'">截圖通過：'+ssDone+'/'+total+'</div>'
+    +'<div class="v-item '+(allDone===total?'done':'pending')+'" style="font-weight:700">全員完成：'+allDone+'/'+total+'</div>'
+    +'</div>';
+
+  if(!filtered.length) html += '<tr><td colspan="10" style="text-align:center;color:var(--text-dim);padding:16px">無符合條件的用戶</td></tr>';
   html += '</tbody></table>';
+  html += '<div style="text-align:center;padding:8px;font-size:12px;color:var(--text-dim)">';
+  html += '第 <input type="number" id="admin-page-num" value="'+currentPage+'" min="1" max="'+totalPages+'" style="width:40px;background:rgba(0,20,60,0.4);border:1px solid rgba(0,195,255,0.15);color:var(--text-primary);text-align:center;border-radius:2px;font-size:12px" onchange="renderAdminUserList()"> / '+totalPages+' 頁';
+  html += '　共 '+filtered.length+' 筆';
+  html += '</div>';
   document.getElementById('admin-user-list').innerHTML = html;
 }
 
@@ -1197,29 +1908,61 @@ function changeUserRole(idx, newRole){
   var cur = AuthManager.getCurrentUser();
   var users = AuthManager.getUsers();
   if(!users[idx] || !AuthManager.canManageUser(cur, users[idx])) return;
+  // 防止把唯一超管降權
+  if(users[idx].role==='超級管理員' && newRole!=='超級管理員' && AuthManager.isOnlySuperAdmin(users[idx].username)){
+    console.warn('[PERM] 拒絕：不能降權唯一超級管理員'); return;
+  }
+  var oldRole = users[idx].role;
   users[idx].role = newRole;
   users[idx].updatedAt = new Date().toISOString();
   AuthManager.saveUsers(users);
+  LogManager.addActionLog({operator:cur.username, operatorRole:cur.role, action:'修改角色', target:users[idx].username, detail:'role:'+oldRole+'→'+newRole, result:'success'});
+  if(typeof SheetSync!=='undefined') try{ SheetSync.pushUser(users[idx]); }catch(e){}
   renderAdminUserList();
 }
 
 function deleteUser(idx){
   var cur = AuthManager.getCurrentUser();
+  if(!cur) return;
   var users = AuthManager.getUsers();
-  if(!users[idx] || !AuthManager.canManageUser(cur, users[idx])) return;
-  users.splice(idx, 1);
+  if(!users[idx]) return;
+  // 權限檢查
+  if(!AuthManager.canManageUser(cur, users[idx])) return;
+  // 不能刪除自己
+  if(users[idx].username === cur.username) return;
+  // 不能刪除唯一超管
+  if(users[idx].role==='超級管理員' && AuthManager.isOnlySuperAdmin(users[idx].username)) return;
+  // 刪除權限需 admin+
+  if(!PermissionManager.canDeleteUser(cur.role)) return;
+  var target = users[idx];
+  // 軟刪除（不真正移除，標記 is_deleted）
+  target.isDeleted = true;
+  target.deletedAt = new Date().toISOString();
+  target.isActive = false;
+  target.isOnline = false;
+  target.updatedAt = new Date().toISOString();
   AuthManager.saveUsers(users);
+  LogManager.addActionLog({operator:cur.username, operatorRole:cur.role, action:'刪除用戶', target:target.username, detail:'role:'+target.role+',soft_delete', result:'success'});
+  if(typeof SheetSync!=='undefined') try{ SheetSync.pushUser(target); }catch(e){}
   renderAdminUserList();
 }
 
 function toggleUserStatus(idx){
   var cur = AuthManager.getCurrentUser();
+  if(!cur) return;
   var users = AuthManager.getUsers();
-  if(!users[idx] || !AuthManager.canManageUser(cur, users[idx])) return;
+  if(!users[idx]) return;
+  if(!AuthManager.canManageUser(cur, users[idx])) return;
+  // 不能停用自己
+  if(users[idx].username === cur.username) return;
+  // 不能停用唯一超管
+  if(users[idx].isActive && users[idx].role==='超級管理員' && AuthManager.isOnlySuperAdmin(users[idx].username)) return;
   users[idx].isActive = !users[idx].isActive;
-  if(!users[idx].isActive) users[idx].isOnline = false; // 停用即離線
+  if(!users[idx].isActive) users[idx].isOnline = false;
   users[idx].updatedAt = new Date().toISOString();
   AuthManager.saveUsers(users);
+  LogManager.addActionLog({operator:cur.username, operatorRole:cur.role, action:users[idx].isActive?'啟用帳號':'停用帳號', target:users[idx].username, detail:'status:'+(users[idx].isActive?'active':'disabled'), result:'success'});
+  if(typeof SheetSync!=='undefined') try{ SheetSync.pushUser(users[idx]); }catch(e){}
   renderAdminUserList();
 }
 
@@ -1240,21 +1983,424 @@ function handleCreateUser(){
   var users = AuthManager.getUsers();
   for(var i=0;i<users.length;i++){ if(users[i].username===u){ msg.textContent='此帳號已存在'; msg.className='form-msg error'; return; } }
   var now = new Date().toISOString();
-  users.push({ id:'u_'+Date.now(), username:u, password:p, name:n, displayName:n, role:r, team:t, shift:s, isRoot:false, isActive:true, isOnline:false, createdAt:now, updatedAt:now, lastLoginAt:'' });
+  users.push({ id:'u_'+Date.now(), username:u, passwordHash:p, name:n, displayName:n, role:r, team:t, shift:s, isRoot:false, isActive:true, isOnline:false, mustChangePassword:true, passwordStatus:'temporary', tfaSecret:'', tfaEnabled:false, tfaStatus:'unbound', firstLoginAt:'', lastLoginAt:'', screenshotStatus:'missing', createdAt:now, updatedAt:now });
   AuthManager.saveUsers(users);
+  LogManager.addActionLog({operator:cur.username, operatorRole:cur.role, action:'新增用戶', target:u, detail:'role:'+r+',team:'+t, result:'success'});
+  // 推送新用戶到 Sheet
+  var newUsers = AuthManager.getUsers();
+  var newU = newUsers[newUsers.length-1];
+  if(newU && typeof SheetSync!=='undefined') try{ SheetSync.pushUser(newU); }catch(e){}
   msg.textContent='用戶建立成功'; msg.className='form-msg success';
   setTimeout(function(){ hideModal('create-user-modal'); renderAdminUserList(); }, 600);
 }
 
-// Close modals on overlay click
+function resetUser2fa(idx){
+  var cur = AuthManager.getCurrentUser();
+  var users = AuthManager.getUsers();
+  if(!users[idx] || !AuthManager.canManageUser(cur, users[idx])) return;
+  AuthManager.resetTfa(users[idx].username);
+  LogManager.addActionLog({operator:cur.username, operatorRole:cur.role, action:'重置2FA', target:users[idx].username, detail:'2FA已重置', result:'success'});
+  renderAdminUserList();
+}
+
+function showUserDetail(idx){
+  var users = AuthManager.getUsers();
+  var u = users[idx];
+  if(!u) return;
+  var html = '<table style="width:100%;font-size:13px">';
+  var rows = [
+    ['用戶 ID', u.id||'-'],
+    ['帳號', u.username],
+    ['姓名', u.displayName||u.name],
+    ['角色', '<span style="color:'+PermissionManager.roleColor(u.role)+'">'+u.role+'</span>'],
+    ['團隊', (u.team||'-')+(u.shift?' · '+u.shift:'')],
+    ['帳號狀態', u.isActive!==false?'<span style="color:var(--accent-green)">啟用</span>':'<span style="color:var(--accent-red)">停用</span>'],
+    ['密碼狀態', u.passwordStatus==='changed'?'已修改':'預設'],
+    ['2FA 狀態', u.tfaStatus||'unknown'],
+    ['截圖狀態', u.screenshotStatus||'missing'],
+    ['首次登入', u.firstLoginAt?u.firstLoginAt.slice(0,19).replace('T',' '):'尚未登入'],
+    ['最後登入', u.lastLoginAt?u.lastLoginAt.slice(0,19).replace('T',' '):'尚未登入'],
+    ['建立時間', u.createdAt?u.createdAt.slice(0,19).replace('T',' '):'-'],
+    ['更新時間', u.updatedAt?u.updatedAt.slice(0,19).replace('T',' '):'-'],
+    ['ROOT', u.isRoot?'是':'否']
+  ];
+  rows.forEach(function(r){ html += '<tr><td style="color:var(--text-dim);padding:4px 8px;width:100px">'+r[0]+'</td><td style="padding:4px 8px">'+r[1]+'</td></tr>'; });
+  html += '</table>';
+  document.getElementById('user-detail-content').innerHTML = html;
+  showModal('user-detail-modal');
+}
+
+// ══════════════════════════════════════
+// Admin Tab Switching
+// ══════════════════════════════════════
+function switchAdminTab(tab){
+  var sections = {
+    'users': document.querySelector('.admin-section:has(#admin-user-list)'),
+    'login-logs': document.getElementById('admin-login-logs-section'),
+    'action-logs': document.getElementById('admin-action-logs-section')
+  };
+  // Also include the toolbar with search/filter for users
+  var userToolbar = document.querySelector('.admin-toolbar:has(#admin-search)');
+
+  Object.keys(sections).forEach(function(k){
+    if(sections[k]) sections[k].style.display = (k===tab) ? '' : 'none';
+  });
+  if(userToolbar) userToolbar.style.display = (tab==='users') ? '' : 'none';
+
+  // Tab button styling
+  ['tab-users','tab-login-logs','tab-action-logs'].forEach(function(id){
+    var btn = document.getElementById(id);
+    if(btn) btn.style.opacity = (id === 'tab-'+tab) ? '1' : '0.5';
+  });
+
+  if(tab==='login-logs') renderLoginLogs();
+  if(tab==='action-logs') renderActionLogs();
+}
+
+function renderLoginLogs(){
+  var cur = AuthManager.getCurrentUser();
+  if(!cur || !PermissionManager.canViewLogs(cur.role)) return;
+  var logs = LogManager.getLoginLogs();
+  var search = (document.getElementById('log-login-search').value||'').toLowerCase();
+  var filterResult = document.getElementById('log-login-result').value;
+
+  var filtered = logs.filter(function(l){
+    if(search && l.username.toLowerCase().indexOf(search)===-1) return false;
+    if(filterResult && l.result !== filterResult) return false;
+    return true;
+  }).slice(0, 100); // Show max 100
+
+  var html = '<table><thead><tr><th>時間</th><th>帳號</th><th>結果</th><th>原因</th><th>裝置</th></tr></thead><tbody>';
+  filtered.forEach(function(l){
+    var t = l.time ? l.time.slice(0,10)+' '+l.time.slice(11,16) : '--';
+    var rc = l.result==='success' ? 'var(--accent-green)' : 'var(--accent-red)';
+    var rt = l.result==='success' ? '成功' : '失敗';
+    html += '<tr><td style="font-size:11px;color:var(--text-dim)">'+t+'</td>';
+    html += '<td>'+l.username+'</td>';
+    html += '<td style="color:'+rc+'">'+rt+'</td>';
+    html += '<td style="font-size:11px">'+( l.reason||'-')+'</td>';
+    html += '<td style="font-size:10px;color:var(--text-dim);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(l.userAgent||'-')+'</td>';
+    html += '</tr>';
+  });
+  if(!filtered.length) html += '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:16px">暫無記錄</td></tr>';
+  html += '</tbody></table>';
+  document.getElementById('login-logs-list').innerHTML = html;
+}
+
+function renderActionLogs(){
+  var cur = AuthManager.getCurrentUser();
+  if(!cur || !PermissionManager.canViewLogs(cur.role)) return;
+  var logs = LogManager.getActionLogs();
+  var search = (document.getElementById('log-action-search').value||'').toLowerCase();
+
+  var filtered = logs.filter(function(l){
+    if(search && l.operator.toLowerCase().indexOf(search)===-1 && (l.target||'').toLowerCase().indexOf(search)===-1) return false;
+    return true;
+  }).slice(0, 100);
+
+  var html = '<table><thead><tr><th>時間</th><th>操作人</th><th>角色</th><th>操作</th><th>對象</th><th>詳情</th></tr></thead><tbody>';
+  filtered.forEach(function(l){
+    var t = l.time ? l.time.slice(0,10)+' '+l.time.slice(11,16) : '--';
+    html += '<tr><td style="font-size:11px;color:var(--text-dim)">'+t+'</td>';
+    html += '<td>'+l.operator+'</td>';
+    html += '<td style="color:'+PermissionManager.roleColor(l.operatorRole)+'">'+l.operatorRole+'</td>';
+    html += '<td>'+l.action+'</td>';
+    html += '<td>'+(l.target||'-')+'</td>';
+    html += '<td style="font-size:11px">'+(l.detail||'-')+'</td>';
+    html += '</tr>';
+  });
+  if(!filtered.length) html += '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:16px">暫無記錄</td></tr>';
+  html += '</tbody></table>';
+  document.getElementById('action-logs-list').innerHTML = html;
+}
+
+// Close modals on overlay click (except 2FA modals — those require completion)
 document.querySelectorAll('.modal-overlay').forEach(function(ov){
   ov.addEventListener('click', function(e){
-    if(e.target === ov) hideModal(ov.id);
+    if(e.target !== ov) return;
+    // 2FA modals should not be dismissible by clicking overlay
+    if(ov.id === 'tfa-bind-modal' || ov.id === 'tfa-verify-modal' || ov.id === 'change-pw-modal') return;
+    hideModal(ov.id);
   });
 });
 
 // Init auth on load
 AuthManager.init();
+
+
+// ══════════════════════════════════════
+// Log Manager — 登入日誌 + 操作日誌
+// ══════════════════════════════════════
+var LogManager = (function(){
+  var LOGIN_LOG_KEY = 'bi_dashboard_login_logs';
+  var ACTION_LOG_KEY = 'bi_dashboard_action_logs';
+  var MAX_LOGS = 500;
+
+  function getLoginLogs(){ try{ return JSON.parse(localStorage.getItem(LOGIN_LOG_KEY)||'[]'); }catch(e){ return []; } }
+  function getActionLogs(){ try{ return JSON.parse(localStorage.getItem(ACTION_LOG_KEY)||'[]'); }catch(e){ return []; } }
+
+  function addLoginLog(entry){
+    // entry: { username, time, result:'success'|'fail', reason, ip, userAgent }
+    var logs = getLoginLogs();
+    entry.id = 'log_'+Date.now();
+    entry.time = entry.time || new Date().toISOString();
+    entry.ip = entry.ip || '-';
+    entry.userAgent = entry.userAgent || (navigator.userAgent||'').substring(0,80);
+    logs.unshift(entry);
+    if(logs.length > MAX_LOGS) logs = logs.slice(0, MAX_LOGS);
+    localStorage.setItem(LOGIN_LOG_KEY, JSON.stringify(logs));
+    // 異步推送到 Google Sheet
+    if(typeof SheetSync!=='undefined') try{ SheetSync.pushLoginLog(entry); }catch(e){}
+  }
+
+  function addActionLog(entry){
+    var logs = getActionLogs();
+    entry.id = 'act_'+Date.now();
+    entry.time = new Date().toISOString();
+    logs.unshift(entry);
+    if(logs.length > MAX_LOGS) logs = logs.slice(0, MAX_LOGS);
+    localStorage.setItem(ACTION_LOG_KEY, JSON.stringify(logs));
+    // 異步推送到 Google Sheet
+    if(typeof SheetSync!=='undefined') try{ SheetSync.pushActionLog(entry); }catch(e){}
+  }
+
+  function clearLogs(type){
+    if(type==='login') localStorage.removeItem(LOGIN_LOG_KEY);
+    if(type==='action') localStorage.removeItem(ACTION_LOG_KEY);
+  }
+
+  return { getLoginLogs:getLoginLogs, getActionLogs:getActionLogs, addLoginLog:addLoginLog, addActionLog:addActionLog, clearLogs:clearLogs };
+})();
+
+// ══════════════════════════════════════
+// Permission Manager — 權限判斷
+// ══════════════════════════════════════
+var PermissionManager = (function(){
+  // 角色枚舉與層級
+  var ROLES = {
+    super_admin: { level:5, label:'超級管理員', color:'var(--accent-orange)' },
+    admin:       { level:4, label:'管理員', color:'var(--accent-orange)' },
+    supervisor:  { level:3, label:'主管', color:'var(--accent-cyan)' },
+    leader:      { level:2, label:'組長', color:'var(--accent-purple)' },
+    member:      { level:1, label:'組員', color:'var(--text-secondary)' }
+  };
+
+  // Map Chinese role names to enum keys
+  var CN_MAP = {'超級管理員':'super_admin','管理員':'admin','主管':'supervisor','組長':'leader','組員':'member'};
+
+  function roleKey(role){ return CN_MAP[role] || role; }
+  function roleLevel(role){ var k = roleKey(role); return ROLES[k] ? ROLES[k].level : 0; }
+  function roleLabel(role){ var k = roleKey(role); return ROLES[k] ? ROLES[k].label : role; }
+  function roleColor(role){ var k = roleKey(role); return ROLES[k] ? ROLES[k].color : 'var(--text-dim)'; }
+
+  // 菜單可見性
+  function canSeeMenu(role, menu){
+    var lv = roleLevel(role);
+    var rules = {
+      'page-overview': 0,  // 所有人
+      'page-members': 1,
+      'page-attendance': 1,
+      'page-performance': 1,
+      'page-daily': 1,
+      'page-products': 1,
+      'admin-panel': 3     // supervisor 以上
+    };
+    return lv >= (rules[menu] || 0);
+  }
+
+  // 頁面訪問權限
+  function canAccessPage(role, page){ return canSeeMenu(role, page); }
+
+  // 操作權限
+  function canManageUsers(role){ return roleLevel(role) >= 3; } // supervisor+
+  function canEditRole(operatorRole, targetRole){
+    var opLv = roleLevel(operatorRole);
+    var tgLv = roleLevel(targetRole);
+    if(opLv >= 5) return true; // super_admin can edit all
+    if(opLv >= 4) return tgLv < 4; // admin can edit below admin
+    if(opLv >= 3) return tgLv < 3; // supervisor can edit below supervisor
+    return false;
+  }
+  function canCreateUser(role){ return roleLevel(role) >= 3; }
+  function canDeleteUser(role){ return roleLevel(role) >= 4; }
+  function canViewLogs(role){ return roleLevel(role) >= 3; }
+  function canResetPassword(operatorRole, targetRole){ return canEditRole(operatorRole, targetRole); }
+  function canReset2FA(operatorRole, targetRole){ return canEditRole(operatorRole, targetRole); }
+
+  return {
+    ROLES:ROLES, CN_MAP:CN_MAP,
+    roleKey:roleKey, roleLevel:roleLevel, roleLabel:roleLabel, roleColor:roleColor,
+    canSeeMenu:canSeeMenu, canAccessPage:canAccessPage,
+    canManageUsers:canManageUsers, canEditRole:canEditRole,
+    canCreateUser:canCreateUser, canDeleteUser:canDeleteUser,
+    canViewLogs:canViewLogs, canResetPassword:canResetPassword, canReset2FA:canReset2FA
+  };
+})();
+
+// ══════════════════════════════════════
+// Sheet Sync — Google Sheet 雲端同步
+// ══════════════════════════════════════
+var SheetSync = (function(){
+  // ← 部署 Apps Script Web App 後，將 URL 貼到這裡
+  var API_URL = '';
+  var API_KEY = 'bi-dashboard-sync-2026'; // 與 Apps Script 端一致
+  var SYNC_ENABLED = false;
+
+  function init(url, key){
+    if(url){ API_URL = url; SYNC_ENABLED = true; }
+    if(key) API_KEY = key;
+    console.log('[SheetSync] init:', SYNC_ENABLED ? 'ENABLED' : 'DISABLED (no API_URL)');
+  }
+
+  function isEnabled(){ return SYNC_ENABLED && API_URL; }
+
+  // 通用 POST
+  function post(action, data, callback){
+    if(!isEnabled()){ if(callback) callback(null); return; }
+    var body = JSON.stringify({ apiKey:API_KEY, action:action, data:data||{} });
+    fetch(API_URL, {
+      method:'POST', mode:'no-cors',  // Apps Script 需要 no-cors 或正確 CORS
+      headers:{'Content-Type':'text/plain'}, // text/plain 避免 preflight
+      body:body
+    }).then(function(res){
+      // no-cors 模式下 response 是 opaque，無法讀取
+      // 改用 cors 模式（需 Apps Script 正確處理 CORS）
+      return null;
+    }).catch(function(err){
+      console.warn('[SheetSync] POST error:', action, err.message);
+    });
+    // 同時嘗試用 redirect 方式（Apps Script Web App 的標準做法）
+    fetchWithRedirect(action, data, callback);
+  }
+
+  // Apps Script Web App 的正確 fetch 方式（跟隨重定向）
+  function fetchWithRedirect(action, data, callback){
+    if(!isEnabled()){ if(callback) callback(null); return; }
+    var body = JSON.stringify({ apiKey:API_KEY, action:action, data:data||{} });
+    fetch(API_URL, {
+      method:'POST',
+      redirect:'follow',
+      body:body
+    }).then(function(res){
+      if(res.ok) return res.json();
+      throw new Error('HTTP '+res.status);
+    }).then(function(json){
+      console.log('[SheetSync]', action, '→', json.ok ? 'OK' : json.error);
+      if(callback) callback(json);
+    }).catch(function(err){
+      console.warn('[SheetSync]', action, 'failed:', err.message);
+      if(callback) callback(null);
+    });
+  }
+
+  // ── 用戶同步 ──
+
+  // 拉取全量用戶（非敏感字段）
+  function pullUsers(callback){
+    fetchWithRedirect('getUsers', {}, function(res){
+      if(res && res.ok && res.users){
+        console.log('[SheetSync] pullUsers: got', res.users.length, 'users');
+        mergeUsersFromSheet(res.users);
+      }
+      if(callback) callback(res);
+    });
+  }
+
+  // 推送單個用戶（非敏感字段）
+  function pushUser(user){
+    if(!user || !user.id) return;
+    var safe = {
+      id:user.id, username:user.username, name:user.name||user.displayName,
+      role:user.role, team:user.team||'', shift:user.shift||'',
+      is_root:!!user.isRoot, is_active:user.isActive!==false,
+      is_deleted:!!user.isDeleted, deleted_at:user.deletedAt||'',
+      must_change_password:!!user.mustChangePassword,
+      password_status:user.passwordStatus||'temporary',
+      tfa_enabled:!!user.tfaEnabled, tfa_status:user.tfaStatus||'unbound',
+      screenshot_status:user.screenshotStatus||'missing',
+      first_login_at:user.firstLoginAt||'', last_login_at:user.lastLoginAt||'',
+      created_at:user.createdAt||'', updated_at:user.updatedAt||''
+    };
+    fetchWithRedirect('upsertUser', safe, null);
+  }
+
+  // 合併 Sheet 數據到 localStorage（以 updated_at 為準）
+  function mergeUsersFromSheet(sheetUsers){
+    var locals = AuthManager.getUsers();
+    var localMap = {};
+    locals.forEach(function(u){ localMap[u.id] = u; });
+    var changed = false;
+
+    sheetUsers.forEach(function(su){
+      var local = localMap[su.id];
+      if(!local){
+        // Sheet 有但本地沒有 → 不自動拉入（可能是其他設備建立的，缺敏感字段）
+        console.log('[SheetSync] merge: skip remote-only user:', su.username);
+        return;
+      }
+      // 兩邊都有 → 比較 updated_at，Sheet 較新則更新本地非敏感字段
+      var localTime = local.updatedAt || '';
+      var sheetTime = su.updated_at || '';
+      if(sheetTime > localTime){
+        // 更新非敏感字段
+        local.name = su.name || local.name;
+        local.displayName = su.name || local.displayName;
+        local.role = su.role || local.role;
+        local.team = su.team || local.team;
+        local.shift = su.shift || local.shift;
+        local.isActive = su.is_active !== false && su.is_active !== 'FALSE';
+        local.mustChangePassword = su.must_change_password === true || su.must_change_password === 'TRUE';
+        local.passwordStatus = su.password_status || local.passwordStatus;
+        local.tfaEnabled = su.tfa_enabled === true || su.tfa_enabled === 'TRUE';
+        local.tfaStatus = su.tfa_status || local.tfaStatus;
+        local.screenshotStatus = su.screenshot_status || local.screenshotStatus;
+        local.firstLoginAt = su.first_login_at || local.firstLoginAt;
+        local.lastLoginAt = su.last_login_at || local.lastLoginAt;
+        local.updatedAt = sheetTime;
+        changed = true;
+        console.log('[SheetSync] merge: updated local user:', local.username);
+      }
+    });
+
+    if(changed){
+      AuthManager.saveUsers(locals);
+      // 重新渲染（如果後台開著）
+      if(typeof renderAdminUserList === 'function'){
+        try { renderAdminUserList(); } catch(e){}
+      }
+    }
+  }
+
+  // ── 日誌同步 ──
+
+  function pushLoginLog(entry){
+    if(!entry) return;
+    fetchWithRedirect('addLoginLog', {
+      id:entry.id||'', username:entry.username||'',
+      time:entry.time||'', result:entry.result||'',
+      reason:entry.reason||'', ip:entry.ip||'',
+      user_agent:entry.userAgent||''
+    }, null);
+  }
+
+  function pushActionLog(entry){
+    if(!entry) return;
+    fetchWithRedirect('addActionLog', {
+      id:entry.id||'', operator:entry.operator||'',
+      operator_role:entry.operatorRole||'',
+      action:entry.action||'', target:entry.target||'',
+      detail:entry.detail||'', time:entry.time||'',
+      result:entry.result||''
+    }, null);
+  }
+
+  return {
+    init:init, isEnabled:isEnabled,
+    pullUsers:pullUsers, pushUser:pushUser,
+    pushLoginLog:pushLoginLog, pushActionLog:pushActionLog
+  };
+})();
+
 
 // ── Nav ──
 document.querySelectorAll('.nav-item').forEach(btn=>{
@@ -1397,6 +2543,18 @@ bT.innerHTML=BAD_NEWS.map(b=>`<div class="marquee-item"><span class="m-time">${b
   layoutDashboard();
   document.fonts&&document.fonts.ready.then(layoutDashboard);
 })();
+
+// ── Google Sheet 同步（安全延後初始化）──
+// 在所有頁面元素、圖表、縮放完成後才執行，失敗不影響主頁面
+setTimeout(function(){
+  try {
+    if(typeof SheetSync !== 'undefined'){
+      SheetSync.init('https://script.google.com/macros/s/AKfycbzIz6HVW9GI87AUOh1CswJEjURy9Bl4RGmR6auCfEHSF5RXKz-DyTquYUyvGA1C16YLMQ/exec', 'bi-dashboard-sync-2026-secure-01');
+    }
+  } catch(e){
+    console.warn('[SheetSync] 初始化失敗，不影響主頁面:', e.message);
+  }
+}, 2000);
 </script>
 </body>
 </html>
